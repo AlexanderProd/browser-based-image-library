@@ -16,7 +16,8 @@ import (
 
 
 const PATH = "/Users/alexanderhoerl/Downloads/Dummy_Folder"
-const BATCH_INSERT_SIZE = 200
+const BATCH_INSERT_SIZE = 100
+const DB_PATH = "./database.db"
 var allowedFileTypes = []string{".png", ".jpg", ".jpeg", ".bmp"}
 var db *gorm.DB
 var app *fiber.App
@@ -26,12 +27,12 @@ var embedDirStatic embed.FS
 
 func main() {
 	var err error
-	db, err = gorm.Open(sqlite.Open("./database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err = gorm.Open(sqlite.Open(DB_PATH), &gorm.Config{Logger: logger.Default.LogMode(logger.Error)})
   if err != nil {
     panic("failed to connect database")
   }
 
-	db.AutoMigrate(&File{}, &FilePath{}, &Tag{})
+	db.AutoMigrate(&File{}, &Tag{}, &Category{})
 
 	start := time.Now()
 	
@@ -56,5 +57,7 @@ func main() {
 		Browse: true,
 	}))
 
-	//app.Listen(":3000")
+	app.Static("/static", PATH)
+
+	app.Listen(":3000")
 }

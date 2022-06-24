@@ -5,10 +5,16 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+func saveEntriesToDB(entries []File) {
+	db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"path", "parent_id"}),
+	}).Create(entries)
+}
 
 func walkDir() {
 	var entries []File
@@ -24,38 +30,40 @@ func walkDir() {
 
 		if file.IsDir() {
 			fileType = "folder"
-			hash = uuid.NewString()
+			hash = hashString(path)
 		} else {
 			if (!matchInArray(path, allowedFileTypes)) {
 				return nil
 			}
 			fileType = "file"
-			hash = hashFile(path)
+			hash, _ = hashFile(path)
 		}
 
-		var parent FilePath
-		if err := db.Where(&FilePath{Path: parentDir}).First(&parent).Error; err != nil {
+		var parent File
+		if err := db.Where(&File{Path: parentDir}).First(&parent).Error; err != nil {
 			// Look for FilePath in entries slice bacause it has not yet been saved to the db
 			if (errors.Is(err, gorm.ErrRecordNotFound)){
 				for _, entry := range entries {
-					if (entry.FilePath.Path == parentDir) {
-						parent.FileID = entry.ID
+					if (entry.Path == parentDir) {
+						parent.ID = entry.ID
 						break
 					}
 				}
 			}
 		}
-
-		entry := File{ID: hash, Type: fileType, FilePath: FilePath{Path: path}, ParentID: parent.FileID}
+		
+		entry := File{ID: hash, Type: fileType, ParentID: parent.ID, Path: path}
 		entries = append(entries, entry)
 
-		if (len(entries) > BATCH_INSERT_SIZE) {
-			db.Clauses(clause.OnConflict{DoNothing: true}).Create(entries)
+		if (len(entries) >= BATCH_INSERT_SIZE) {
+			saveEntriesToDB(entries)
 			entries = nil
 		}
 
 		return nil;
 	});
 	
-	db.Clauses(clause.OnConflict{DoNothing: true}).Create(entries)
+	if (len(entries) != 0) {
+		saveEntriesToDB(entries)
+	}
 }
