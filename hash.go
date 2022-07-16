@@ -6,7 +6,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+
+	"github.com/spaolacci/murmur3"
 )
 
 func hashFile(path string) (string, error) {
@@ -37,4 +40,21 @@ func hashString(path string) string {
 	sum := hash.Sum(nil)
 
 	return hex.EncodeToString(sum[:])
+}
+
+func murmurHashFile(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := murmur3.New64()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	sum := hash.Sum64()
+
+	return strconv.FormatUint(sum, 10), nil
 }
