@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/AlexanderProd/browser-based-image-library/database"
 	"gorm.io/gorm"
@@ -17,10 +18,14 @@ func saveEntriesToDB(entries []database.File) {
 	}).Create(entries)
 }
 
+func createRelativeFilePath(path string) string {
+	return strings.Replace(path, rootPath, "", -1)
+}
+
 func walkDir() {
 	var entries []database.File
 
-	filepath.WalkDir(PATH, func(path string, file fs.DirEntry,  err error) error {
+	filepath.WalkDir(rootPath, func(path string, file fs.DirEntry,  err error) error {
 		if err != nil {
 			return err
 		}
@@ -28,6 +33,7 @@ func walkDir() {
 		var fileType string
 		var hash string
 		var parentDir = filepath.Dir(path)
+		var relativePath = createRelativeFilePath(path)
 
 		if file.IsDir() {
 			fileType = "folder"
@@ -53,7 +59,7 @@ func walkDir() {
 			}
 		}
 		
-		entry := database.File{ID: hash, Type: fileType, ParentID: parent.ID, Path: path}
+		entry := database.File{ID: hash, Type: fileType, ParentID: parent.ID, Path: relativePath}
 		entries = append(entries, entry)
 
 		if (len(entries) >= BATCH_INSERT_SIZE) {

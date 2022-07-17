@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
@@ -8,20 +10,10 @@ import (
 )
 
 func Shuffle(c *fiber.Ctx, db *gorm.DB) error {
-	body := struct {
-		Limit int 	 `json:"limit"`
-		Type  string `json:"type"`
-	}{
-		Limit: 10,
-		Type: "file",
-	}
-
-	if err := c.BodyParser(&body); err != nil {
-		return err
-	}
+	limit, _ := strconv.Atoi(c.Query("limit", "10")) 
 
 	var files []database.File
-	db.Where(&database.File{Type: "file"}).Order("random()").Preload("Tags").Preload("Categories").Limit(body.Limit).Find(&files)
+	db.Where(&database.File{Type: "file"}).Order("random()").Preload("Tags").Preload("Categories").Limit(limit).Find(&files)
 
-	return c.JSON(files)
+	return c.Status(fiber.StatusOK).JSON(files)
 }
